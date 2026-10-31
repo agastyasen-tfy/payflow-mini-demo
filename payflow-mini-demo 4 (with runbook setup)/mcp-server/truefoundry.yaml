@@ -1,0 +1,38 @@
+# ─────────────────────────────────────────────────────────────────────
+# DEPLOY TARGET: internal DEVTEST control plane
+# Deploy with:   tfy login --host https://<DEVTEST-HOST>
+#                cd mcp-server && tfy apply -f truefoundry.yaml
+# Placeholders to fill (both from DEVTEST):
+#   (A) workspace_fqn  → DEVTEST UI → Workspaces → your workspace → copy-FQN button
+#   (B) host           → a subdomain on DEVTEST's cluster base domain
+#                        (DEVTEST UI → your cluster → Domains / base domain)
+# ─────────────────────────────────────────────────────────────────────
+name: payflow-mcp
+type: service
+workspace_fqn: <A--DEVTEST-WORKSPACE-FQN>        # e.g. devtest-cluster:agent-demo
+image:
+  type: build
+  build_source:
+    type: local
+    project_root_path: ./
+    local_build: false
+  build_spec:
+    type: tfy-python-buildpack
+    python_version: "3.11"
+    build_context_path: ./
+    requirements_path: requirements.txt
+    command: python server.py
+ports:
+  - port: 8001
+    protocol: TCP
+    expose: true
+    app_protocol: http
+    host: payflow-mcp.<B--DEVTEST-BASE-DOMAIN>   # e.g. payflow-mcp.apps.devtest.example.com
+env:
+  PORT: "8001"
+replicas: 1
+resources:
+  cpu_request: 0.2
+  cpu_limit: 0.5
+  memory_request: 500
+  memory_limit: 1000

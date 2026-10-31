@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>PayFlow — Refunds Assistant</title>
+<style>
+  :root { --bg:#0f1117; --panel:#181b24; --accent:#4f7cff; --text:#e8eaf0; --muted:#8a90a3; --danger:#ff5d6c; }
+  * { box-sizing:border-box; margin:0; }
+  body { font-family:ui-sans-serif,system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--text);
+         display:flex; align-items:center; justify-content:center; min-height:100vh; }
+  .card { width:min(680px,94vw); background:var(--panel); border-radius:16px; padding:24px;
+          box-shadow:0 8px 40px rgba(0,0,0,.45); }
+  h1 { font-size:18px; margin-bottom:4px; } .sub { color:var(--muted); font-size:13px; margin-bottom:18px; }
+  #login input, #chatbox input { width:100%; padding:12px 14px; border-radius:10px; border:1px solid #2a2f3e;
+          background:#10131c; color:var(--text); font-size:14px; outline:none; }
+  button { margin-top:12px; padding:11px 18px; border:0; border-radius:10px; background:var(--accent);
+           color:#fff; font-size:14px; cursor:pointer; } button:hover { opacity:.9; }
+  #messages { height:420px; overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding:8px 2px; margin-bottom:12px; }
+  .msg { max-width:85%; padding:10px 14px; border-radius:12px; font-size:14px; line-height:1.45; white-space:pre-wrap; }
+  .user { align-self:flex-end; background:var(--accent); color:#fff; border-bottom-right-radius:4px; }
+  .agent { align-self:flex-start; background:#232838; border-bottom-left-radius:4px; }
+  .denied { align-self:flex-start; background:#3a1c22; border:1px solid var(--danger); color:#ffc9cf; }
+  .typing { color:var(--muted); font-style:italic; }
+  .row { display:flex; gap:10px; } .row button { margin-top:0; }
+  .badge { display:inline-block; font-size:11px; color:var(--muted); border:1px solid #2a2f3e;
+           border-radius:999px; padding:2px 10px; margin-bottom:14px; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>PayFlow — Refunds Assistant</h1>
+  <div class="sub">Powered by <b>payflow-refunds-agent</b> via the TrueFoundry Agent Gateway</div>
+
+  <div id="login">
+    <input id="password" type="password" placeholder="Password (demo)"/>
+    <button onclick="doLogin()">Sign in as demo user</button>
+    <div id="loginErr" class="sub" style="color:var(--danger); margin-top:8px;"></div>
+  </div>
+
+  <div id="chatbox" class="hidden">
+    <span class="badge">Signed in as demo-user · agent identity: payflow-refunds-agent</span>
+    <div id="messages"></div>
+    <div class="row">
+      <input id="input" placeholder="e.g. List transactions for cust_42, then refund txn_1002 (wrong charge)"
+             onkeydown="if(event.key==='Enter')send()"/>
+      <button onclick="send()">Send</button>
+    </div>
+  </div>
+</div>
+<script>
+async function doLogin(){
+  const r = await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({password:document.getElementById('password').value})});
+  if(r.ok){ document.getElementById('login').classList.add('hidden');
+            document.getElementById('chatbox').classList.remove('hidden');
+            add('agent','Hi! I\'m the PayFlow Refunds Agent. I can list transactions, look one up, or issue a refund. Try: "Show transactions for cust_42".'); }
+  else document.getElementById('loginErr').textContent = 'Wrong password';
+}
+function add(cls, text){
+  const m=document.getElementById('messages'); const d=document.createElement('div');
+  d.className='msg '+cls; d.textContent=text; m.appendChild(d); m.scrollTop=m.scrollHeight; return d;
+}
+async function send(){
+  const i=document.getElementById('input'); const text=i.value.trim(); if(!text) return;
+  i.value=''; add('user',text); const t=add('agent typing','Agent is thinking…');
+  try{
+    const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({message:text})});
+    const data=await r.json(); t.remove();
+    add(data.denied?'denied':'agent', data.reply || '(no reply)');
+  }catch(e){ t.remove(); add('denied','Request failed: '+e); }
+}
+</script>
+</body>
+</html>
