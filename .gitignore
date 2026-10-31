@@ -1,0 +1,6 @@
+scripts/demo.env
+scripts/.tunnel_*
+scripts/.cf_*.log
+__pycache__/
+*.pyc
+.DS_Store

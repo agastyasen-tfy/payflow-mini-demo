@@ -1,0 +1,50 @@
+# ─────────────────────────────────────────────────────────────────────
+# DEPLOY TARGET: internal DEVTEST control plane (compute only).
+# All env vars that touch identity point at PLATFORM-ADMIN (governance).
+# Deploy with:   tfy login --host https://<DEVTEST-HOST>
+#                cd agent && tfy apply -f truefoundry.yaml
+#
+# Placeholders — source of each value:
+#   (A) workspace_fqn    → DEVTEST UI → Workspaces → copy-FQN
+#   (B) host / PUBLIC_URL→ DEVTEST cluster base domain
+#   (C) GATEWAY_BASE_URL → PLATFORM-ADMIN control plane URL (where you log in)
+#   (D) MODEL            → PLATFORM-ADMIN → AI Gateway → Models (provider/model id)
+#   (E) AGENT_TOKEN      → PLATFORM-ADMIN → Agent Registry → agent row ⋮ → Get Token
+#                          (leave placeholder on FIRST deploy; fill after registering)
+#   (F) USER_TOKEN       → PLATFORM-ADMIN → Settings → Personal Access Tokens
+# ─────────────────────────────────────────────────────────────────────
+name: payflow-agent
+type: service
+workspace_fqn: <A--DEVTEST-WORKSPACE-FQN>
+image:
+  type: build
+  build_source:
+    type: local
+    project_root_path: ./
+    local_build: false
+  build_spec:
+    type: tfy-python-buildpack
+    python_version: "3.11"
+    build_context_path: ./
+    requirements_path: requirements.txt
+    command: python agent.py
+ports:
+  - port: 8000
+    protocol: TCP
+    expose: true
+    app_protocol: http
+    host: payflow-agent.<B--DEVTEST-BASE-DOMAIN>
+env:
+  PORT: "8000"
+  GATEWAY_BASE_URL: https://<C--PLATFORM-ADMIN-HOST>      # NOT devtest!
+  MODEL: <D--MODEL-ID>                                    # e.g. openai-main/gpt-4o-mini
+  MCP_SERVER_NAME: payflow-transactions                   # must match name registered on platform-admin
+  PUBLIC_URL: https://payflow-agent.<B--DEVTEST-BASE-DOMAIN>/
+  AGENT_TOKEN: <E--AGENT-TOKEN-FILL-AFTER-REGISTRATION>
+  USER_TOKEN: <F--PLATFORM-ADMIN-USER-PAT>
+replicas: 1
+resources:
+  cpu_request: 0.2
+  cpu_limit: 0.5
+  memory_request: 500
+  memory_limit: 1000
